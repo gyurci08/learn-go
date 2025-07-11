@@ -2,28 +2,48 @@ package main
 
 import (
 	"encoding/json"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
+// HelloWorld is a simple GORM model for demonstration.
+type HelloWorld struct {
+	ID      uint   `gorm:"primaryKey"`
+	Message string `gorm:"type:varchar(255)"`
+}
+
 func main() {
-	// Read database configuration from environment
-	//dsn := os.Getenv("DATABASE_DSN")
-	//if dsn == "" {
-	//	log.Fatal("DATABASE_DSN environment variable not set")
-	//}
+	// Load .env file if present
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found or error loading .env file")
+	}
 
-	// Initialize database connection
-	//db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	//if err != nil {
-	//	log.Fatalf("Database connection failed: %v", err)
-	//}
+	// Get required environment variable
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		log.Fatal("DATABASE_DSN environment variable not set")
+	}
 
-	// Set up HTTP router using standard library
+	// Connect to database
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	// Auto-migrate HelloWorld schema
+	if err := db.AutoMigrate(&HelloWorld{}); err != nil {
+		log.Fatalf("AutoMigrate failed: %v", err)
+	}
+
+	// Set up HTTP router
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /hello", helloHandler)
 
-	// Start server
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatalf("Server failed: %v", err)
