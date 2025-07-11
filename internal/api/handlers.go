@@ -12,6 +12,10 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type DataResponse struct {
+	Data interface{} `json:"data"`
+}
+
 // List all HelloWorld messages
 func ListHelloHandler(dbConn *gorm.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -83,5 +87,5 @@ func WriteError(w http.ResponseWriter, msg string, code int) {
 func WriteJSON(w http.ResponseWriter, data interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
+	json.NewEncoder(w).Encode(DataResponse{Data: data})
 }
