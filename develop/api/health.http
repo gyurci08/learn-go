@@ -1,0 +1,7 @@
+### COMMON VARIABLES
+@baseUrl = http://localhost:8080
+
+
+### Health check endpoint
+GET {{baseUrl}}/health
+Content-Type: application/json

@@ -1,0 +1,11 @@
+name: 'LearnGo'
+services:
+  app:
+    build:
+      context: ../.
+    environment:
+      - DATABASE_DSN=postgres://learn_go:12345678@postgres:5432/learn_go?sslmode=disable
+      - TZ=Europe/Budapest
+      - PORT=8080
+    ports:
+      - "8081:8080"

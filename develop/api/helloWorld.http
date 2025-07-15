@@ -1,0 +1,31 @@
+### COMMON VARIABLES
+@baseUrl = http://localhost:8080
+@token = <paste-your-jwt-token-here>
+
+
+### List all HelloWorld messages
+GET {{baseUrl}}/hello
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+
+### Get a single HelloWorld message by ID (e.g., ID=1)
+GET {{baseUrl}}/hello/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+
+### Add a new HelloWorld message
+POST {{baseUrl}}/hello
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "message": "Teszt Post!"
+}
+
+
+### Delete a HelloWorld message by ID (e.g., ID=1)
+DELETE {{baseUrl}}/hello/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
