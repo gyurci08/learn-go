@@ -13,6 +13,24 @@ import (
 	"time"
 )
 
+type User struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+type FakeDatabase struct {
+	Users []User `json:"users"`
+}
+
+func (db *FakeDatabase) GetUser(ctx context.Context, id string) (User, error) {
+	for _, user := range db.Users {
+		if user.Id == id {
+			return user, nil
+		}
+	}
+	return User{}, fmt.Errorf("user not found")
+}
+
 type Config struct {
 	Port string
 	Env  string
@@ -73,17 +91,45 @@ func main() {
 
 	mux.HandleFunc("/live", liveHandler)
 	mux.HandleFunc("/ready", readyHandler)
-	mux.HandleFunc("/api/v1/hello", helloHandler)
 
 	fmt.Println("server env is " + cfg.Env)
+
+	db := &FakeDatabase{
+		Users: []User{
+			{Id: "1", Name: "John Doe", Age: 25},
+		},
+	}
+
+	mux.HandleFunc("/api/v1/user", userHandler(db))
+
 	fmt.Println("server starting on :8080")
-
 	handler := loggingMiddleware(mux)
-
 	server := NewServer(":"+cfg.Port, handler)
 
 	if err := server.Run(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func userHandler(db *FakeDatabase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "missing id query parameter",
+			})
+			return
+		}
+
+		user, err := db.GetUser(r.Context(), id)
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "user not found",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, user)
 	}
 }
 
@@ -100,13 +146,6 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 		"status": "ready",
 	}
 
-	writeJSON(w, http.StatusOK, response)
-}
-
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"message": "hello, world!!!",
-	}
 	writeJSON(w, http.StatusOK, response)
 }
 
