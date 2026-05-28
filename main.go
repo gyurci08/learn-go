@@ -33,7 +33,7 @@ func NewServer(address string, handler http.Handler) *Server {
 
 func (s *Server) start(errChan chan<- error) {
 	go func() {
-		if err := s.httpServer.ListenAndServe(); err != nil {
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errChan <- err
 		}
 	}()
@@ -54,7 +54,7 @@ func (s *Server) Run() error {
 	case err := <-errChan:
 		return err
 	case sig := <-sigChan:
-		slog.Info("stop signal received", sig.String())
+		slog.Info("stop signal received", "signal", sig.String())
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
