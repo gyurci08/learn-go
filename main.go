@@ -9,12 +9,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
 
 type User struct {
-	Id   string `json:"id"`
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+type CreateUserRequest struct {
 	Name string `json:"name"`
 	Age  int    `json:"age"`
 }
@@ -22,13 +28,23 @@ type FakeDatabase struct {
 	Users []User `json:"users"`
 }
 
-func (db *FakeDatabase) GetUser(ctx context.Context, id string) (User, error) {
+func (db *FakeDatabase) GetUser(ctx context.Context, id int) (User, error) {
 	for _, user := range db.Users {
 		if user.Id == id {
 			return user, nil
 		}
 	}
 	return User{}, fmt.Errorf("user not found")
+}
+
+func (db *FakeDatabase) CreateUser(ctx context.Context, user User) (User, error) {
+	newUser := User{
+		Id:   len(db.Users) + 1,
+		Name: user.Name,
+		Age:  user.Age,
+	}
+	db.Users = append(db.Users, newUser)
+	return newUser, nil
 }
 
 type Config struct {
@@ -96,7 +112,7 @@ func main() {
 
 	db := &FakeDatabase{
 		Users: []User{
-			{Id: "1", Name: "John Doe", Age: 25},
+			{Id: 1, Name: "John Doe", Age: 25},
 		},
 	}
 
@@ -113,23 +129,72 @@ func main() {
 
 func userHandler(db *FakeDatabase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		if id == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{
-				"error": "missing id query parameter",
-			})
-			return
-		}
+		switch r.Method {
+		case http.MethodGet:
+			// 1) GET: user lekérdezése id alapján
+			strId := r.URL.Query().Get("id")
+			if strId == "" {
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error": "missing id query parameter",
+				})
+				return
+			}
 
-		user, err := db.GetUser(r.Context(), id)
-		if err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{
-				"error": "user not found",
-			})
-			return
-		}
+			id, err := strconv.Atoi(strId)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error": "invalid id, must be an integer",
+				})
+				return
+			}
 
-		writeJSON(w, http.StatusOK, user)
+			user, err := db.GetUser(r.Context(), id)
+			if err != nil {
+				writeJSON(w, http.StatusNotFound, map[string]string{
+					"error": "user not found",
+				})
+				return
+			}
+
+			writeJSON(w, http.StatusOK, user)
+
+		case http.MethodPost:
+			// 2) POST: új user létrehozása JSON body-ból
+			var req CreateUserRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error": "invalid JSON body",
+				})
+				return
+			}
+
+			// esetleg minimális validáció
+			if req.Name == "" || req.Age <= 0 {
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error": "name and age are required",
+				})
+				return
+			}
+
+			newUser, err := db.CreateUser(r.Context(), User{
+				Name: req.Name,
+				Age:  req.Age,
+			})
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "could not create user",
+				})
+				return
+			}
+
+			// 201 Created + létrehozott user
+			writeJSON(w, http.StatusCreated, newUser)
+
+		default:
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+				"error": "method not allowed",
+			})
+		}
 	}
 }
 
